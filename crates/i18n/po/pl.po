@@ -1961,6 +1961,12 @@ msgstr "Poproś listę o zaprzestanie wysyłania do Ciebie poczty. MailCraft naj
 msgid "Ask to be told when the message is read"
 msgstr "Poproś o powiadomienie o przeczytaniu wiadomości"
 
+#. ribbon
+#: crates/ui-egui/src/ribbon.rs
+#, fuzzy
+msgid "Ask to be told when the message reaches the recipient's mailbox"
+msgstr "Poproś o powiadomienie, gdy wiadomość dotrze do skrzynki odbiorcy"
+
 #. android
 #: apps/mailcraft-android/app/src/main/kotlin/work/mailcraft/android/PicturesSettings.kt
 #, fuzzy
@@ -13124,6 +13130,12 @@ msgstr "Żądaj odpowiedzi"
 #. command label, ribbon
 #: crates/engine/src/cmd/compose.rs crates/ui-egui/src/ribbon.rs
 #, fuzzy
+msgid "Request a Delivery Receipt"
+msgstr "Żądaj potwierdzenia dostarczenia"
+
+#. command label, ribbon
+#: crates/engine/src/cmd/compose.rs crates/ui-egui/src/ribbon.rs
+#, fuzzy
 msgid "Request a Read Receipt"
 msgstr "Żądaj potwierdzenia odczytu"
 
@@ -14501,6 +14513,12 @@ msgstr "Wysyła raport zespołowi MailCraft w postaci pokazanej w tym oknie."
 #, fuzzy
 msgid "Sent"
 msgstr "Wysłano"
+
+#. why a mail server couldn't be used
+#: crates/net/src/sync.rs
+#, fuzzy
+msgid "Sent \"{subject}\" without a delivery receipt: the outgoing server doesn't offer them"
+msgstr "Wysłano „{subject}” bez potwierdzenia dostarczenia: serwer wychodzący ich nie oferuje"
 
 #. name
 #: crates/model/src/mailbox.rs
