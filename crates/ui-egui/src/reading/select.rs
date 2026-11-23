@@ -933,16 +933,28 @@ fn picture_params(picture: &MenuPicture) -> Value {
 }
 
 /// The picture under `pos` (in the window), when one is shown there. The last one painted wins.
-pub(super) fn menu_picture(laid: &Laid, origin: Vec2, pos: Pos2, message: Id) -> Option<MenuPicture> {
+/// A picture whose texture is [`super::images::Picture::Failed`] is the stand-in the reading pane draws, so it
+/// is not shown: neither Save Picture As nor Copy Picture is offered over it (#1420).
+pub(super) fn menu_picture(
+    laid: &Laid,
+    origin: Vec2,
+    pos: Pos2,
+    message: Id,
+    pictures: &mut super::images::Pictures,
+    ctx: &egui::Context,
+) -> Option<MenuPicture> {
     let (width, dark) = laid.media();
     let mut found = None;
     for item in &laid.items {
         if !item.rect.translate(origin).contains(pos) {
             continue;
         }
-        if let ItemKind::Picture(picture) = &item.kind
-            && let Some(src) = picture.src.clone()
-        {
+        let ItemKind::Picture(picture) = &item.kind else { continue };
+        if matches!(pictures.texture(ctx, &picture.data, item.rect.size()), super::images::Picture::Failed) {
+            found = None;
+            continue;
+        }
+        if let Some(src) = picture.src.clone() {
             let remote = super::images::is_remote(&src);
             found = Some(MenuPicture { message, src, remote, bytes: picture.data.clone(), width, dark });
         }

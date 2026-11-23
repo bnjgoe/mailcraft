@@ -4838,8 +4838,14 @@ fn a_shown_picture_can_be_saved_or_copied_and_one_that_is_not_cannot() {
     let shot = png(20, 12);
     let chart = png(8, 8);
     let chart_b64 = mailcraft_engine::cmd::base64_encode(&chart);
+    // A header that names a picture, and pixels that do not decode: layout keeps it as a picture,
+    // and the pane paints a stand-in once the texture fails.
+    let whole = png(16, 16);
+    let broken = whole[..whole.len() / 2].to_vec();
+    assert!(super::images::probe(&broken).is_some());
+    assert!(super::images::decode(&broken, 2048, 2048).is_none());
     let html = format!(
-        "<p>Hello</p><img src=\"cid:shot@example\" alt=\"ridge\"><p>After</p><img src=\"data:image/png;base64,{chart_b64}\" alt=\"chart\"><p>End</p><img src=\"https://t.example/o.gif\" width=\"1\" height=\"1\"><img src=\"https://img.example/blocked.png\" alt=\"blocked\">"
+        "<p>Hello</p><img src=\"cid:shot@example\" alt=\"ridge\"><p>After</p><img src=\"data:image/png;base64,{chart_b64}\" alt=\"chart\"><img src=\"cid:broken@example\" alt=\"broken\"><p>End</p><img src=\"https://t.example/o.gif\" width=\"1\" height=\"1\"><img src=\"https://img.example/blocked.png\" alt=\"blocked\">"
     );
     let mut mailbox = Mailbox::with_local_account("Avery Quinn", "avery@lumen-works.example");
     let inbox = mailbox.inbox().unwrap();
@@ -4850,11 +4856,10 @@ fn a_shown_picture_can_be_saved_or_copied_and_one_that_is_not_cannot() {
             subject: "A picture".into(),
             read: true,
             body: Body { html: Some(html), text: "Hello".into() },
-            attachments: vec![Attachment {
-                content_id: "shot@example".into(),
-                inline: true,
-                ..Attachment::new("ridge.png", "image/png", shot.clone())
-            }],
+            attachments: vec![
+                Attachment { content_id: "shot@example".into(), inline: true, ..Attachment::new("ridge.png", "image/png", shot.clone()) },
+                Attachment { content_id: "broken@example".into(), inline: true, ..Attachment::new("broken.png", "image/png", broken) },
+            ],
             ..Message::default()
         })
         .unwrap();
@@ -4879,17 +4884,21 @@ fn a_shown_picture_can_be_saved_or_copied_and_one_that_is_not_cannot() {
     select(&mut harness, id);
 
     let ctx = harness.ctx.clone();
-    let (shot_at, chart_at, blocked_at, width, dark) = super::view::kept(&ctx, id, |laid, origin| {
+    let (shot_at, chart_at, broken_at, blocked_at, width, dark) = super::view::kept(&ctx, id, |laid, origin| {
         let center = |item: &Item| item.rect.translate(origin.to_vec2()).center();
         let pictures: Vec<_> = laid.items.iter().filter(|item| matches!(item.kind, ItemKind::Picture(_))).collect();
-        assert_eq!(pictures.len(), 2, "the part and the picture written into the message");
+        assert_eq!(pictures.len(), 3, "the part, the picture written into the message, and the one that will not decode");
         let ItemKind::Picture(first) = &pictures[0].kind else { panic!("the first shown picture") };
         let ItemKind::Picture(second) = &pictures[1].kind else { panic!("the second shown picture") };
-        assert_eq!((first.src.as_deref(), second.src.as_deref()), (Some("cid:shot@example"), Some("data:0")));
+        let ItemKind::Picture(third) = &pictures[2].kind else { panic!("the picture that does not decode") };
+        assert_eq!(
+            (first.src.as_deref(), second.src.as_deref(), third.src.as_deref()),
+            (Some("cid:shot@example"), Some("data:0"), Some("cid:broken@example"))
+        );
         let blocked = laid.items.iter().find(|item| matches!(&item.kind, ItemKind::Placeholder(p) if p.src.contains("blocked.png"))).unwrap();
         assert!(laid.items.iter().all(|item| !matches!(&item.kind, ItemKind::Placeholder(p) if p.src.contains("o.gif"))));
         let (width, dark) = laid.media();
-        (center(pictures[0]), center(pictures[1]), center(blocked), width, dark)
+        (center(pictures[0]), center(pictures[1]), center(pictures[2]), center(blocked), width, dark)
     })
     .unwrap();
 
@@ -4913,6 +4922,9 @@ fn a_shown_picture_can_be_saved_or_copied_and_one_that_is_not_cannot() {
     assert_eq!(mailcraft_engine::cmd::base64_decode(got["data"].as_str().unwrap()).unwrap(), chart);
 
     menu_click(&mut harness, blocked_at);
+    assert_eq!((named(&harness, save), named(&harness, copy)), (0, 0));
+    // The header was enough to lay it out as a picture; the texture failed, so the stand-in has neither action.
+    menu_click(&mut harness, broken_at);
     assert_eq!((named(&harness, save), named(&harness, copy)), (0, 0));
     let why = harness
         .state_mut()
